@@ -14,28 +14,32 @@ logger = logging.getLogger(__name__)
 
 # !! SECURITY WARNING !!
 # Replace these with a secure method, e.g., environment variables
-SALESFORCE_SEARCH_TOKEN = os.getenv("SALESFORCE_SEARCH_TOKEN", "YOUR_METADATA_TOKEN_HERE")
+BOX_METADATA_TOKEN = os.getenv("BOX_METADATA_TOKEN", "YOUR_METADATA_TOKEN_HERE")
+BOX_HUB_TOKEN = os.getenv("BOX_HUB_TOKEN", "YOUR_HUB_TOKEN_HERE")
+BOX_ENTERPRISE_ID = os.getenv("BOX_ENTERPRISE_ID", "YOUR_BOX_ENTERPRISE_ID_HERE")
+BOX_HUB_ID = os.getenv("BOX_HUB_ID", "YOUR_BOX_HUB_ID_HERE") # e.g., "216163155"
 
-def Salesforce_generic_search(prompt: str) -> str:
+
+def box_generic_search(prompt: str) -> str:
     """
-    Sends a prompt to a specific Salesforce Search to get answers based on its associated content.
+    Sends a prompt to a specific Box Search to get answers based on its associated content.
 
     Args:
-      prompt: The question or prompt to ask the Salesforce search.
+      prompt: The question or prompt to ask the Box search.
 
     Returns:
-      The answer provided by the Salesforce Hub, or an error message.
+      The answer provided by the Box Hub, or an error message.
     """
-    logger.info(f"Finding Salesforce content from: '{prompt}'")
-    url = f"https://MyDomainName.my.salesforce.com/services/data/v63.0/parameterizedSearch/?q={prompt}"
+    logger.info(f"Finding Box content from: '{prompt}'")
+    url = f"https://api.box.com/2.0/search?query={prompt}"
     headers = {
-        "Authorization": f"Bearer {SALESFORCE_SEARCH_TOKEN}"
+        "Authorization": f"Bearer {BOX_HUB_TOKEN}"
     }
    
     try:
         # Change this line from POST to GET
         response = requests.get(url, headers=headers)  # Change from POST to GET
-        logger.info(f"Salesforce Search API response status: {response.status_code}")
+        logger.info(f"Box Search API response status: {response.status_code}")
         response.raise_for_status() # Check for HTTP errors
 
         response_data = response.json()
@@ -52,12 +56,12 @@ def Salesforce_generic_search(prompt: str) -> str:
             return "Found the following items:\n" + "\n".join(results)
         else:
             # Handle cases where the API succeeds but provides no results
-            return f"No Salesforce content found matching '{prompt}'."
+            return f"No Box content found matching '{prompt}'."
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error during Salesforce Search call: {e}")
+        logger.error(f"Error during Box Search call: {e}")
         error_details = f"Status: {e.response.status_code}. Details: {e.response.text}" if hasattr(e, 'response') and e.response else "No response details."
-        return f"API Error: Failed to ask Salesforce Search. {error_details}"
+        return f"API Error: Failed to ask Box Search. {error_details}"
     except Exception as e:
-        logger.error(f"An unexpected error occurred in Salesforce_generic_search: {e}", exc_info=True)
+        logger.error(f"An unexpected error occurred in box_generic_search: {e}", exc_info=True)
         return f"An unexpected error occurred: {e}"

@@ -4,6 +4,7 @@
 # Import necessary components from the google.adk namespace
 from google.adk.agents.parallel_agent import ParallelAgent
 from google.adk.agents.sequential_agent import SequentialAgent
+from google.adk.agents.llm_agent import LlmAgent
 from .sub_agents.Box_search_agent import *# Import the Box search agent
 from .sub_agents.Box_hub_agent import *# Import the Box hub agent
 
