@@ -1,3 +1,4 @@
+# File: agent.py
 
 import logging
 from typing import AsyncGenerator
@@ -15,13 +16,13 @@ from Box_ADK_Example.sub_agents.Box_hub_agent import Box_hub_agent
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Updated decision router to handle credit policy queries AND MCP routing
+# Define the decision router agent
 decision_router = LlmAgent(
     model='gemini-2.0-flash',
     name="DecisionRouter",
     instruction="""
     You are a decision router for Box content queries. Your task is to determine whether a query should be 
-    directed to the Box Search agent, Box Hub agent, or Box Remote MCP agent based on the content of the query.
+    directed to the Box Search agent or the Box Hub agent based on the content of the query.
     
     INSTRUCTIONS:
     
@@ -30,57 +31,40 @@ decision_router = LlmAgent(
     2. If the query is about:
        - Product-specific information (features, specifications, releases, etc.)
        - Go-to-Market (GTM) content (marketing, sales materials, pitch decks, etc.)
-       - Credit policy questions, loan compliance, policy exceptions
-       - Home loan application analysis, LVR requirements, lending criteria
        - Specific hubs or departments within Box
        => Output "box_hub"
     
     3. If the query is about:
        - General document searches across all content
        - Specific file retrieval or information extraction
-       - Content analysis that doesn't specifically reference products, GTM, or credit policy
+       - Content analysis that doesn't specifically reference products or GTM materials
        => Output "box_search"
     
-    4. If the query is about:
-       - Advanced Box AI operations (multi-file analysis, metadata extraction)
-       - Remote Box content access via MCP
-       - Folder navigation and file management operations
-       - Cross-file comparisons or analysis
-       - When user specifically mentions "MCP" or "remote Box access"
-       => Output "box_mcp"
+    4. Your output should ONLY be the exact text "box_hub" or "box_search" - nothing else.
     
-    5. Your output should ONLY be the exact text "box_hub", "box_search", or "box_mcp" - nothing else.
-    
-    6. If you're uncertain, default to "box_search" as it has broader capabilities.
+    5. If you're uncertain, default to "box_search" as it has broader capabilities.
     
     Examples:
     - Query: "Find presentations about Relay" -> Output: "box_hub"
     - Query: "What documents mention Q4 sales targets?" -> Output: "box_search"
     - Query: "Tell me about the new product launch materials" -> Output: "box_hub"
     - Query: "Find all documents that mention AI capabilities" -> Output: "box_search"
-    - Query: "Check this loan application against credit policy" -> Output: "box_hub"
-    - Query: "What's the LVR limit for CAT 3 properties?" -> Output: "box_hub"
-    - Query: "Analyze this home loan scenario for compliance" -> Output: "box_hub"
-    - Query: "Compare data across multiple files in my Box account" -> Output: "box_mcp"
-    - Query: "Extract metadata from this document using Box AI" -> Output: "box_mcp"
-    - Query: "List all files in the marketing folder" -> Output: "box_mcp"
     """,
-    output_key="routing_decision",
+    output_key="routing_decision",  # Key for storing the routing decision in session state
 )
 
 class BoxFlowAgent(BaseAgent):
     """
     Custom agent for Box content search workflow.
     
-    This agent decides whether to route queries to the Box Search agent,
-    Box Hub agent, or Box Remote MCP agent based on the content of the query.
+    This agent decides whether to route queries to the Box Search agent
+    or the Box Hub agent based on the content of the query.
     """
     
     # Field declarations for Pydantic
     decision_router: LlmAgent
     box_search_agent: LlmAgent
     box_hub_agent: LlmAgent
-    box_mcp_agent: LlmAgent  # ADD THIS LINE
     
     # Allow arbitrary types for Pydantic
     model_config = {"arbitrary_types_allowed": True}
@@ -91,7 +75,6 @@ class BoxFlowAgent(BaseAgent):
         decision_router: LlmAgent,
         box_search_agent: LlmAgent,
         box_hub_agent: LlmAgent,
-        box_mcp_agent: LlmAgent,  # ADD THIS PARAMETER
     ):
         """
         Initializes the BoxFlowAgent.
@@ -101,14 +84,12 @@ class BoxFlowAgent(BaseAgent):
             decision_router: An LlmAgent to decide which path to take.
             box_search_agent: An LlmAgent for Box content search.
             box_hub_agent: An LlmAgent for Box hub interactions.
-            box_mcp_agent: An LlmAgent for Box Remote MCP operations.
         """
         # Define the sub_agents list for the framework
         sub_agents_list = [
             decision_router,
             box_search_agent,
             box_hub_agent,
-            box_mcp_agent,  # ADD THIS TO THE LIST
         ]
         
         # Pydantic will validate and assign them based on the class annotations
@@ -117,7 +98,6 @@ class BoxFlowAgent(BaseAgent):
             decision_router=decision_router,
             box_search_agent=box_search_agent,
             box_hub_agent=box_hub_agent,
-            box_mcp_agent=box_mcp_agent,  # ADD THIS PARAMETER
             sub_agents=sub_agents_list,
         )
     
@@ -145,20 +125,11 @@ class BoxFlowAgent(BaseAgent):
             logger.error(f"[{self.name}] Failed to make routing decision. Defaulting to Box Search.")
             routing_decision = "box_search"
         
-        # FIX: Strip whitespace and newlines from the decision
-        routing_decision = routing_decision.strip() if routing_decision else "box_search"
-        logger.info(f"[{self.name}] Cleaned routing decision: '{routing_decision}'")
-        
         # 3. Execute the appropriate agent based on the decision
         if routing_decision == "box_hub":
             logger.info(f"[{self.name}] Running Box Hub Agent...")
             async for event in self.box_hub_agent.run_async(ctx):
                 logger.info(f"[{self.name}] Event from BoxHubAgent: {event.model_dump_json(indent=2, exclude_none=True)}")
-                yield event
-        elif routing_decision == "box_mcp":  # ADD THIS ELIF BLOCK
-            logger.info(f"[{self.name}] Running Box Remote MCP Agent...")
-            async for event in self.box_mcp_agent.run_async(ctx):
-                logger.info(f"[{self.name}] Event from BoxMCPAgent: {event.model_dump_json(indent=2, exclude_none=True)}")
                 yield event
         else:  # Default to box_search
             logger.info(f"[{self.name}] Running Box Search Agent...")
