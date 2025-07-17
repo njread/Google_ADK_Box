@@ -1,0 +1,18 @@
+# Core dependencies
+google-adk==1.4.1
+a2a-sdk==0.2.5
+fastapi==0.115.12
+litellm==1.72.0
+uvicorn[standard]==0.34.3
+streamlit==1.45.1
+python-dotenv==1.1.0
+httpx==0.28.1
+uv==0.7.13
+
+# Development dependencies
+black==25.1.0
+isort==6.0.1
+mypy==1.16.0
+pytest==8.4.0
+pytest-asyncio==1.0.0
+pytest-cov==6.1.1

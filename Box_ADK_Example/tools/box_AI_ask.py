@@ -31,6 +31,7 @@ def box_AI_ask(prompt: str, items: str) -> str:
   headers = {
       "Authorization": f"Bearer {BOX_HUB_TOKEN}",
       "Content-Type": "application/json"
+      "Prompt: ""
   }
   
   # Parse items string into proper JSON
